@@ -1,6 +1,3 @@
-// Googleカレンダーのページから指定日の予定タイトルを取得する
-// popup.js からメッセージで呼び出される
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action !== "getEvents") return;
 
@@ -13,14 +10,24 @@ function extractEvents() {
   const results = [];
   const seen = new Set();
 
-  // aria-label を持つ全イベントチップを取得
-  const candidates = document.querySelectorAll('[data-eventchip], [data-eventid]');
+  // Google Calendarのイベント要素を広めに取得
+  const selectors = [
+    '[data-eventchip]',
+    '[data-eventid]',
+    '[data-eventkey]',
+    'div[role="button"][aria-label]',
+    'a[role="button"][aria-label]',
+    '[jsname][aria-label]',
+  ];
+
+  const candidates = document.querySelectorAll(selectors.join(','));
 
   candidates.forEach((el) => {
     const label = el.getAttribute("aria-label") || "";
+    if (!label) return;
     if (isUIElement(label)) return;
 
-    const title = getTitleFromElement(el);
+    const title = extractTitle(label);
     if (title && !seen.has(title)) {
       seen.add(title);
       results.push(title);
@@ -30,19 +37,23 @@ function extractEvents() {
   return results;
 }
 
-function getTitleFromElement(el) {
-  const label = el.getAttribute("aria-label") || "";
-  if (label) {
-    // 「タイトル」形式から抽出（例: 午前9:30～午前10時、「FDEコセンスアップデート」、...）
-    const quoted = label.match(/[「"](.+?)[」"]/);
-    if (quoted) return quoted[1].trim();
-  }
+function extractTitle(label) {
+  // パターン1: 「タイトル」形式
+  const quoted = label.match(/[「"](.+?)[」"]/);
+  if (quoted) return quoted[1].trim();
+
+  // パターン2: 時刻の後にタイトルが来る形式（例: "午前9:30 FDEコセンスアップデート"）
+  const afterTime = label.match(/[午前午後]\d+[時:]\d*[^\s]*\s+(.+)/);
+  if (afterTime) return afterTime[1].split(/[,、]/)[0].trim();
+
+  // パターン3: ラベル全体が短ければタイトルとみなす
+  const clean = label.trim();
+  if (clean.length > 1 && clean.length < 60 && !/^\d/.test(clean)) return clean;
 
   return null;
 }
 
 function isUIElement(label) {
-  // イベントではないUI要素を除外
-  const uiPatterns = ["勤務場所を追加", "場所を追加", "予定を追加", "タスクを追加"];
+  const uiPatterns = ["勤務場所を追加", "場所を追加", "予定を追加", "タスクを追加", "新しい予定", "もっと見る", "他"];
   return uiPatterns.some((p) => label.includes(p));
 }
