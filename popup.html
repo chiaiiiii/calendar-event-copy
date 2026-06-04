@@ -5,7 +5,7 @@
   <style>
     body {
       font-family: "Hiragino Sans", "Meiryo", sans-serif;
-      width: 320px;
+      width: 340px;
       padding: 16px;
       background: #fff;
       color: #333;
@@ -43,6 +43,10 @@
       cursor: pointer;
     }
     button:hover { background: #1558b0; }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
     #result {
       margin-top: 12px;
       font-size: 12px;
@@ -52,7 +56,7 @@
       border-radius: 4px;
       padding: 10px;
       min-height: 60px;
-      max-height: 200px;
+      max-height: 220px;
       overflow-y: auto;
       display: none;
     }
@@ -64,16 +68,18 @@
     #copy-btn:hover { background: #2d8f47; }
     #status {
       font-size: 11px;
-      color: #888;
-      margin-top: 6px;
-      text-align: center;
+      color: #666;
+      margin-top: 8px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      text-align: left;
     }
   </style>
 </head>
 <body>
   <h2>📅 カレンダー予定コピー</h2>
   <div class="row">
-    <label>日付：</label>
+    <label for="date-input">日付：</label>
     <input type="date" id="date-input" />
   </div>
   <button id="get-btn">予定を取得</button>

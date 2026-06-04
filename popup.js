@@ -5,66 +5,61 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyBtn = document.getElementById("copy-btn");
   const statusDiv = document.getElementById("status");
 
-  const today = new Date();
-  dateInput.value = formatDate(today);
+  dateInput.value = formatDate(new Date());
 
   getBtn.addEventListener("click", async () => {
-    resultDiv.style.display = "none";
-    copyBtn.style.display = "none";
-    statusDiv.textContent = "取得中...";
-
+    resetUi();
     const selectedDate = dateInput.value;
     if (!selectedDate) {
       statusDiv.textContent = "日付を選択してください";
       return;
     }
 
-    try {
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const [bgTab] = await chrome.tabs.query({ url: "https://calendar.google.com/*", active: false });
-      const targetTab = isCalendarTab(activeTab) ? activeTab : bgTab;
+    getBtn.disabled = true;
+    statusDiv.textContent = "取得中...";
 
+    try {
+      const targetTab = await findCalendarTab();
       if (!targetTab) {
         statusDiv.textContent = "Googleカレンダーのタブが見つかりません。\nカレンダーを開いてから再試行してください。";
         return;
       }
 
-      // ping で注入済みか確認し、未注入なら動的注入する
-      const injected = await chrome.tabs.sendMessage(targetTab.id, { action: "ping" }).catch(() => null);
-      if (!injected) {
-        await chrome.scripting.executeScript({
-          target: { tabId: targetTab.id },
-          files: ["content.js"],
-        });
-      }
+      await ensureContentScript(targetTab.id);
 
       const response = await chrome.tabs.sendMessage(targetTab.id, {
         action: "getEvents",
         date: selectedDate,
       });
 
-      if (!response || !response.events) {
-        statusDiv.textContent = "予定の取得に失敗しました";
+      if (!response) {
+        statusDiv.textContent = "予定の取得に失敗しました。";
         return;
       }
 
-      if (response.dateMismatch) {
-        statusDiv.textContent = `カレンダーの表示日が選択日（${selectedDate}）と異なります。\nカレンダー側で同じ日付を開いてから再試行してください。`;
+      if (response.error) {
+        statusDiv.textContent = `エラーが発生しました：${response.error}`;
         return;
       }
 
-      if (response.events.length === 0) {
+      const events = Array.isArray(response.events) ? response.events : [];
+
+      if (events.length === 0) {
         resultDiv.textContent = "この日の予定はありません";
         resultDiv.style.display = "block";
-        statusDiv.textContent = "";
+        const candidateCount = response.debug?.candidateCount ?? 0;
+        statusDiv.textContent = candidateCount > 0
+          ? `予定候補は${candidateCount}件見つかりましたが、タイトルとして抽出できませんでした。\nGoogleカレンダーを「日」表示にして、対象日を画面に表示した状態で再試行してください。`
+          : "予定候補が見つかりませんでした。Googleカレンダーを「日」表示にして、対象日を画面に表示した状態で再試行してください。";
+        console.log("Calendar copy debug:", response.debug);
         return;
       }
 
-      const text = response.events.map((e) => `・${e}`).join("\n");
+      const text = events.map((e) => `・${e}`).join("\n");
       resultDiv.textContent = text;
       resultDiv.style.display = "block";
       copyBtn.style.display = "block";
-      statusDiv.textContent = `${response.events.length}件の予定を取得しました`;
+      statusDiv.textContent = `${events.length}件の予定を取得しました`;
 
       copyBtn.onclick = async () => {
         await navigator.clipboard.writeText(text);
@@ -75,10 +70,42 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     } catch (err) {
       console.error(err);
-      statusDiv.textContent = "エラーが発生しました。カレンダーのページを開いているか確認してください。";
+      statusDiv.textContent = "エラーが発生しました。拡張機能を再読み込みして、Googleカレンダーを開いた状態で再試行してください。";
+    } finally {
+      getBtn.disabled = false;
     }
   });
+
+  function resetUi() {
+    resultDiv.style.display = "none";
+    resultDiv.textContent = "";
+    copyBtn.style.display = "none";
+    copyBtn.textContent = "クリップボードにコピー";
+    copyBtn.onclick = null;
+    statusDiv.textContent = "";
+  }
 });
+
+async function findCalendarTab() {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (isCalendarTab(activeTab)) return activeTab;
+
+  const tabs = await chrome.tabs.query({ url: "https://calendar.google.com/*" });
+  return tabs[0] || null;
+}
+
+async function ensureContentScript(tabId) {
+  const injected = await chrome.tabs.sendMessage(tabId, { action: "ping" }).catch(() => null);
+  if (injected?.ok) return;
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["content.js"],
+  });
+
+  // 注入直後の保険。通常は不要だが、環境差で listener 登録前に送信されるのを避ける。
+  await new Promise((resolve) => setTimeout(resolve, 50));
+}
 
 function formatDate(date) {
   const y = date.getFullYear();
@@ -88,5 +115,5 @@ function formatDate(date) {
 }
 
 function isCalendarTab(tab) {
-  return tab && tab.url && tab.url.startsWith("https://calendar.google.com/");
+  return Boolean(tab?.url?.startsWith("https://calendar.google.com/"));
 }
