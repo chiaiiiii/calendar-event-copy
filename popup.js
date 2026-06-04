@@ -1,5 +1,3 @@
-// ポップアップの操作とカレンダーページへのメッセージ送信を管理する
-
 document.addEventListener("DOMContentLoaded", () => {
   const dateInput = document.getElementById("date-input");
   const getBtn = document.getElementById("get-btn");
@@ -7,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyBtn = document.getElementById("copy-btn");
   const statusDiv = document.getElementById("status");
 
-  // 今日の日付をデフォルト値にセット
   const today = new Date();
   dateInput.value = formatDate(today);
 
@@ -23,29 +20,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      // Googleカレンダーのタブを探す
-      const [tab] = await chrome.tabs.query({
-        url: "https://calendar.google.com/*",
-        active: false,
-      });
-
-      // アクティブタブも含めて探す
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const targetTab = isCalendarTab(activeTab) ? activeTab : tab;
+      const [bgTab] = await chrome.tabs.query({ url: "https://calendar.google.com/*", active: false });
+      const targetTab = isCalendarTab(activeTab) ? activeTab : bgTab;
 
       if (!targetTab) {
         statusDiv.textContent = "Googleカレンダーのタブが見つかりません。\nカレンダーを開いてから再試行してください。";
         return;
       }
 
-      // content script が未注入の場合は動的に注入する
-      try {
+      // ping で注入済みか確認し、未注入なら動的注入する
+      const injected = await chrome.tabs.sendMessage(targetTab.id, { action: "ping" }).catch(() => null);
+      if (!injected) {
         await chrome.scripting.executeScript({
           target: { tabId: targetTab.id },
           files: ["content.js"],
         });
-      } catch (_) {
-        // すでに注入済みの場合はエラーになるが無視
       }
 
       const response = await chrome.tabs.sendMessage(targetTab.id, {
@@ -55,6 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!response || !response.events) {
         statusDiv.textContent = "予定の取得に失敗しました";
+        return;
+      }
+
+      if (response.dateMismatch) {
+        statusDiv.textContent = `カレンダーの表示日が選択日（${selectedDate}）と異なります。\nカレンダー側で同じ日付を開いてから再試行してください。`;
         return;
       }
 
@@ -71,7 +66,6 @@ document.addEventListener("DOMContentLoaded", () => {
       copyBtn.style.display = "block";
       statusDiv.textContent = `${response.events.length}件の予定を取得しました`;
 
-      // コピーボタン
       copyBtn.onclick = async () => {
         await navigator.clipboard.writeText(text);
         copyBtn.textContent = "コピーしました！";

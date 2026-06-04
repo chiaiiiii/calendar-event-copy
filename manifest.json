@@ -9,10 +9,5 @@
     "default_popup": "popup.html",
     "default_title": "予定をコピー"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://calendar.google.com/*"],
-      "js": ["content.js"]
-    }
-  ]
+  "content_scripts": []
 }

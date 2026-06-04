@@ -1,22 +1,39 @@
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action !== "getEvents") return;
+// 注入済みチェック用フラグ（二重登録防止）
+if (!window.__calendarCopyInjected) {
+  window.__calendarCopyInjected = true;
 
-  const events = extractEvents();
-  sendResponse({ events });
-  return true;
-});
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "ping") {
+      sendResponse({ ok: true });
+      return true;
+    }
+    if (request.action !== "getEvents") return;
 
-function extractEvents() {
+    const result = extractEvents(request.date);
+    sendResponse(result);
+    return true;
+  });
+}
+
+function extractEvents(requestedDate) {
+  // カレンダーが表示している日付を取得（URLのdパラメータから）
+  const urlParams = new URLSearchParams(window.location.search);
+  const calDate = urlParams.get("d") || "";
+  // requestedDate は "YYYY-MM-DD"、calDate は "YYYYMMDD" 形式
+  const normalizedCalDate = calDate.replace(/-/g, "");
+  const normalizedRequested = requestedDate ? requestedDate.replace(/-/g, "") : "";
+
+  if (normalizedRequested && normalizedCalDate && normalizedRequested !== normalizedCalDate) {
+    return { events: [], dateMismatch: true };
+  }
+
   const results = [];
   const seen = new Set();
 
-  // aria-label がイベント形式（時刻を含む）かどうか判定
-  const isEventLabel = (label) => /[午前午後]\d+[時:時]\d*/.test(label);
-
-  // role="button" を持つ全要素からイベントのみ絞り込む
   document.querySelectorAll('[role="button"][aria-label], [data-eventchip], [data-eventid]').forEach((el) => {
     const label = el.getAttribute("aria-label") || "";
     if (!label) return;
+    if (isUIElement(label)) return;
     if (!isEventLabel(label)) return;
 
     const title = extractTitle(label);
@@ -26,7 +43,11 @@ function extractEvents() {
     }
   });
 
-  return results;
+  return { events: results };
+}
+
+function isEventLabel(label) {
+  return /(?:午前|午後)\s*\d{1,2}(?:(?:[:：]\d{1,2})|(?:時\d{0,2}分?))?/.test(label);
 }
 
 function extractTitle(label) {
@@ -34,13 +55,9 @@ function extractTitle(label) {
   const quoted = label.match(/[「"](.+?)[」"]/);
   if (quoted) return quoted[1].trim();
 
-  // パターン2: 時刻の後にタイトルが来る形式（例: "午前9:30 FDEコセンスアップデート"）
-  const afterTime = label.match(/[午前午後]\d+[時:]\d*[^\s]*\s+(.+)/);
+  // パターン2: 時刻の後にタイトルが来る形式
+  const afterTime = label.match(/(?:午前|午後)\s*\d{1,2}[時:：][^\s、,]*[\s、,]+(.+)/);
   if (afterTime) return afterTime[1].split(/[,、]/)[0].trim();
-
-  // パターン3: ラベル全体が短ければタイトルとみなす
-  const clean = label.trim();
-  if (clean.length > 1 && clean.length < 60 && !/^\d/.test(clean)) return clean;
 
   return null;
 }
