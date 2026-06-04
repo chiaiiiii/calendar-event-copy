@@ -5,18 +5,8 @@
   "description": "Googleカレンダーの予定タイトルを箇条書きで取得・コピーします",
   "permissions": ["activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["https://calendar.google.com/*"],
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "予定をコピー",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
+    "default_title": "予定をコピー"
   }
 }
