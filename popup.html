@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: "Hiragino Sans", "Meiryo", sans-serif;
+      width: 320px;
+      padding: 16px;
+      background: #fff;
+      color: #333;
+    }
+    h2 {
+      font-size: 14px;
+      margin: 0 0 12px;
+      color: #1a73e8;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    label {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    input[type="date"] {
+      font-size: 12px;
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      flex: 1;
+    }
+    button {
+      width: 100%;
+      padding: 8px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #1558b0; }
+    #result {
+      margin-top: 12px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    #copy-btn {
+      display: none;
+      margin-top: 8px;
+      background: #34a853;
+    }
+    #copy-btn:hover { background: #2d8f47; }
+    #status {
+      font-size: 11px;
+      color: #888;
+      margin-top: 6px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>📅 カレンダー予定コピー</h2>
+  <div class="row">
+    <label>日付：</label>
+    <input type="date" id="date-input" />
+  </div>
+  <button id="get-btn">予定を取得</button>
+  <div id="result"></div>
+  <button id="copy-btn">クリップボードにコピー</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

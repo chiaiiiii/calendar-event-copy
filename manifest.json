@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "カレンダー予定コピー",
+  "version": "1.0",
+  "description": "Googleカレンダーの予定タイトルを箇条書きで取得・コピーします",
+  "permissions": ["activeTab", "scripting", "clipboardWrite"],
+  "host_permissions": ["https://calendar.google.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "予定をコピー"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
