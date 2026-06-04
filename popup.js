@@ -38,6 +38,16 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // content script が未注入の場合は動的に注入する
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: targetTab.id },
+          files: ["content.js"],
+        });
+      } catch (_) {
+        // すでに注入済みの場合はエラーになるが無視
+      }
+
       const response = await chrome.tabs.sendMessage(targetTab.id, {
         action: "getEvents",
         date: selectedDate,
