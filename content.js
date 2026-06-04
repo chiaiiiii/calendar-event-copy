@@ -10,22 +10,14 @@ function extractEvents() {
   const results = [];
   const seen = new Set();
 
-  // Google Calendarのイベント要素を広めに取得
-  const selectors = [
-    '[data-eventchip]',
-    '[data-eventid]',
-    '[data-eventkey]',
-    'div[role="button"][aria-label]',
-    'a[role="button"][aria-label]',
-    '[jsname][aria-label]',
-  ];
+  // aria-label がイベント形式（時刻を含む）かどうか判定
+  const isEventLabel = (label) => /[午前午後]\d+[時:時]\d*/.test(label);
 
-  const candidates = document.querySelectorAll(selectors.join(','));
-
-  candidates.forEach((el) => {
+  // role="button" を持つ全要素からイベントのみ絞り込む
+  document.querySelectorAll('[role="button"][aria-label], [data-eventchip], [data-eventid]').forEach((el) => {
     const label = el.getAttribute("aria-label") || "";
     if (!label) return;
-    if (isUIElement(label)) return;
+    if (!isEventLabel(label)) return;
 
     const title = extractTitle(label);
     if (title && !seen.has(title)) {
